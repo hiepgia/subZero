@@ -45,6 +45,10 @@
 extern void init_mdnie_class(void);
 #endif
 
+// bightness adjustment
+static unsigned int min_brightness = 25;
+static unsigned int bmult = 1;
+
 static const struct tl2796_gamma_adj_points default_gamma_adj_points = {
 	.v0 = BV_0,
 	.v1 = BV_1,
@@ -142,6 +146,11 @@ static void setup_gamma_regs(struct s5p_lcd *lcd, u16 gamma_regs[])
 	u8 brightness = lcd->bl;
 	const struct tl2796_gamma_adj_points *bv = lcd->gamma_adj_points;
 
+	//rightness adjustment
+	u8 brightness_orig = lcd->bl; 
+	brightness = brightness - ((255 / brightness) * bmult) + bmult;
+	brightness = (brightness > brightness_orig || brightness < min_brightness) ? min_brightness : brightness;
+
 	for (c = 0; c < 3; c++) {
 		u32 adj;
 		u32 v0 = gamma_lookup(lcd, brightness, BV_0, c);
@@ -164,7 +173,9 @@ static void setup_gamma_regs(struct s5p_lcd *lcd, u16 gamma_regs[])
 		//   terrible shameful hack allowing to get back standard
 		//   colors without fixing the real thing properly (gamma table)
 		//   it consist on a simple (negative) offset applied on v0
-		gamma_regs[c] = (adj > hacky_v1_offset[c] && (adj <=255)) ? (adj - hacky_v1_offset[c]) | 0x100 : adj | 0x100;
+
+		//gamma_regs[c] = (adj > hacky_v1_offset[c] && (adj <=255)) ? (adj - hacky_v1_offset[c]) | 0x100 : adj | 0x100;
+		gamma_regs[c] = ((adj - hacky_v1_offset[c]) > 0 && (adj <=255)) ? (adj - hacky_v1_offset[c]) | 0x100 : adj | 0x100;
 
 		v255 = vx[5] = gamma_lookup(lcd, brightness, bv->v255, c);
 		adj = 600 - 120 - DIV_ROUND_CLOSEST(600 * v255, v0);
@@ -695,6 +706,41 @@ static ssize_t blue_v1_offset_store(struct device *dev, struct device_attribute 
 	return size;
 }
 
+static ssize_t min_brightness_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", min_brightness);
+}
+
+static ssize_t min_brightness_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+	u32 value;
+
+	if (sscanf(buf, "%u", &value) == 1)
+	{
+		min_brightness = value;
+		update_brightness(lcd_);
+	}
+	return size;
+}
+
+static ssize_t brightness_multiplier_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", bmult);
+}
+
+static ssize_t brightness_multiplier_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+	u32 value;
+	if (sscanf(buf, "%u", &value) == 1)
+	{
+		bmult = value;
+		update_brightness(lcd_);
+	}
+	return size;
+}
+
+static DEVICE_ATTR(min_brightness, S_IRUGO | S_IWUGO, min_brightness_show, min_brightness_store);
+static DEVICE_ATTR(brightness_multiplier, S_IRUGO | S_IWUGO, brightness_multiplier_show, brightness_multiplier_store);
 static DEVICE_ATTR(red_multiplier, S_IRUGO | S_IWUGO, red_multiplier_show, red_multiplier_store);
 static DEVICE_ATTR(green_multiplier, S_IRUGO | S_IWUGO, green_multiplier_show, green_multiplier_store);
 static DEVICE_ATTR(blue_multiplier, S_IRUGO | S_IWUGO, blue_multiplier_show, blue_multiplier_store);
@@ -703,6 +749,8 @@ static DEVICE_ATTR(green_v1_offset, S_IRUGO | S_IWUGO, green_v1_offset_show, gre
 static DEVICE_ATTR(blue_v1_offset, S_IRUGO | S_IWUGO, blue_v1_offset_show, blue_v1_offset_store);
 
 static struct attribute *color_tuning_attributes[] = {
+	&dev_attr_min_brightness.attr,
+	&dev_attr_brightness_multiplier.attr,
 	&dev_attr_red_multiplier.attr,
 	&dev_attr_green_multiplier.attr,
 	&dev_attr_blue_multiplier.attr,
