@@ -871,7 +871,7 @@ static int __init s5pv210_cpu_init(struct cpufreq_policy *policy)
 
 	cpufreq_frequency_table_get_attr(s5pv210_freq_table, policy->cpu);
 
-	policy->cpuinfo.transition_latency = 35000;
+	policy->cpuinfo.transition_latency = 20000; // 40000
 
 #ifdef CONFIG_LIVE_OC
 	liveoc_init();
