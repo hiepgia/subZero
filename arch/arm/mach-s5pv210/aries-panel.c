@@ -358,20 +358,22 @@ struct s5p_panel_data aries_panel_data = {
 		0x0fc,
 	},
 
-//	.color_adj = {
+#ifdef CONFIG_FB_S3C_TL2796_6500K_COLORS
+	.color_adj = {
 		/* Convert from 8500K to D65, assuming:
 		 * Rx 0.66950, Ry 0.33100
 		 * Gx 0.18800, Gy 0.74350
 		 * Bx 0.14142, By 0.04258
 		 */
-/*		.mult = {
+		.mult = {
 			2318372099U,
 			2117262806U,
 			2082349739U,
 		},
 		.rshift = 31,
 	},
-*/
+#endif
+
 	.gamma_adj_points = &gamma_adj_points,
 	.gamma_table = gamma_table,
 	.gamma_table_size = ARRAY_SIZE(gamma_table),
