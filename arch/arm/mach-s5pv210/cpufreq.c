@@ -21,11 +21,13 @@
 #include <linux/regulator/consumer.h>
 #include <linux/cpufreq.h>
 #include <linux/platform_device.h>
+#include <linux/device.h>
 
 #include <mach/map.h>
 #include <mach/regs-clock.h>
 #include <mach/cpu-freq-v210.h>
 #include <mach/voltages.h>
+
 
 static struct clk *cpu_clk;
 static struct clk *dmc0_clk;
@@ -213,7 +215,10 @@ static void s5pv210_set_refresh(enum s5pv210_dmc_port ch, unsigned long freq)
 
 	do_div(tmp1, tmp);
 #ifdef CONFIG_LIVE_OC
-	__raw_writel((tmp1 * oc_value) / 100, reg);
+if (ch == DMC1)
+      __raw_writel((tmp1 * oc_value) / 100, reg);
+  else
+      __raw_writel(tmp1, reg);
 #else
 	__raw_writel(tmp1, reg);
 #endif
@@ -368,6 +373,7 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 		pll_changing = 1;
 
 	/* Check if there need to change System bus clock */
+
 	if ((index == L7) || (freqs.old == s5pv210_freq_table[L7].frequency))
 		bus_speed_changing = 1;
 
@@ -685,7 +691,7 @@ static void liveoc_init(void)
     return;
 }
 
-void liveoc_update(unsigned int oc_value)
+void liveoc_update(unsigned int oc_value, unsigned int oc_low_freq, unsigned int oc_high_freq)
 {
     int i, index, index_min = L0, index_max = L0, divider;
 
@@ -706,8 +712,16 @@ void liveoc_update(unsigned int oc_value)
 
 	if (s5pv210_freq_table[i].frequency == policy->user_policy.max)
 	    index_max = index;
-
-	fclk = (original_fclk[index] * oc_value) / 100;
+if(oc_low_freq < oc_high_freq)
+	if(s5pv210_freq_table[i].frequency >= oc_low_freq && s5pv210_freq_table[i].frequency <= oc_high_freq)
+		fclk = (original_fclk[index] * oc_value) / 100;
+	else
+		fclk = original_fclk[index];
+else
+	if(s5pv210_freq_table[i].frequency >= oc_low_freq || s5pv210_freq_table[i].frequency <= oc_high_freq)
+		fclk = (original_fclk[index] * oc_value) / 100;
+	else
+		fclk = original_fclk[index];
 
 	s5pv210_freq_table[i].frequency = fclk / (clkdiv_val[index][0] + 1);
 
@@ -740,7 +754,21 @@ void liveoc_update(unsigned int oc_value)
 }
 EXPORT_SYMBOL(liveoc_update);
 
+unsigned long get_gpuminfreq(void)
+{
+    return s5pv210_freq_table[L6].frequency;
+}
+EXPORT_SYMBOL(get_gpuminfreq);
+
+unsigned long lowest_step(void)
+{
+    return s5pv210_freq_table[L7].frequency;
+}
+EXPORT_SYMBOL(lowest_step);
+
 #endif
+
+
 
 #ifdef CONFIG_CUSTOM_VOLTAGE
 static const int num_freqs = sizeof(dvs_conf) / sizeof(struct s5pv210_dvs_conf);
@@ -871,7 +899,7 @@ static int __init s5pv210_cpu_init(struct cpufreq_policy *policy)
 
 	cpufreq_frequency_table_get_attr(s5pv210_freq_table, policy->cpu);
 
-	policy->cpuinfo.transition_latency = 20000; // 40000
+	policy->cpuinfo.transition_latency = 35000;
 
 #ifdef CONFIG_LIVE_OC
 	liveoc_init();
