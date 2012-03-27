@@ -130,7 +130,7 @@
  * Value is in ms and set to a minimum of 6ms. Scales with number of cpus.
  * Tunable via /proc interface.
  */
-int rr_interval __read_mostly = 2;
+int rr_interval __read_mostly = 6;
 
 /*
  * sched_iso_cpu - sysctl which determines the cpu percentage SCHED_ISO tasks
@@ -191,6 +191,7 @@ struct global_rq {
  */
 struct root_domain {
 	atomic_t refcount;
+	atomic_t rto_count;
 	struct rcu_head rcu;
 	cpumask_var_t span;
 	cpumask_var_t online;
@@ -200,7 +201,6 @@ struct root_domain {
 	 * one runnable RT task.
 	 */
 	cpumask_var_t rto_mask;
-	atomic_t rto_count;
 	struct cpupri cpupri;
 };
 
@@ -2250,7 +2250,7 @@ static inline void irqtime_account_hi_si(void)
  * On each tick, see what percentage of that tick was attributed to each
  * component and add the percentage to the _pc values. Once a _pc value has
  * accumulated one tick's worth, account for that. This means the total
- * percentage of load components will always be 100 per tick.
+ * percentage of load components will always be 128 (pseudo 100) per tick.
  */
 static void pc_idle_time(struct rq *rq, unsigned long pc)
 {
@@ -2259,14 +2259,14 @@ static void pc_idle_time(struct rq *rq, unsigned long pc)
 
 	if (atomic_read(&rq->nr_iowait) > 0) {
 		rq->iowait_pc += pc;
-		if (rq->iowait_pc >= 100) {
-			rq->iowait_pc -= 100;
+		if (rq->iowait_pc >= 128) {
+			rq->iowait_pc -= 128;
 			cpustat->iowait = cputime64_add(cpustat->iowait, tmp);
 		}
 	} else {
 		rq->idle_pc += pc;
-		if (rq->idle_pc >= 100) {
-			rq->idle_pc -= 100;
+		if (rq->idle_pc >= 128) {
+			rq->idle_pc -= 128;
 			cpustat->idle = cputime64_add(cpustat->idle, tmp);
 		}
 	}
@@ -2281,8 +2281,8 @@ pc_system_time(struct rq *rq, struct task_struct *p, int hardirq_offset,
 	cputime64_t tmp = cputime_to_cputime64(cputime_one_jiffy);
 
 	p->stime_pc += pc;
-	if (p->stime_pc >= 100) {
-		p->stime_pc -= 100;
+	if (p->stime_pc >= 128) {
+		p->stime_pc -= 128;
 		p->stime = cputime_add(p->stime, cputime_one_jiffy);
 		p->stimescaled = cputime_add(p->stimescaled, one_jiffy_scaled);
 		account_group_system_time(p, cputime_one_jiffy);
@@ -2292,20 +2292,20 @@ pc_system_time(struct rq *rq, struct task_struct *p, int hardirq_offset,
 
 	if (hardirq_count() - hardirq_offset) {
 		rq->irq_pc += pc;
-		if (rq->irq_pc >= 100) {
-			rq->irq_pc -= 100;
+		if (rq->irq_pc >= 128) {
+			rq->irq_pc -= 128;
 			cpustat->irq = cputime64_add(cpustat->irq, tmp);
 		}
 	} else if (in_serving_softirq()) {
 		rq->softirq_pc += pc;
-		if (rq->softirq_pc >= 100) {
-			rq->softirq_pc -= 100;
+		if (rq->softirq_pc >= 128) {
+			rq->softirq_pc -= 128;
 			cpustat->softirq = cputime64_add(cpustat->softirq, tmp);
 		}
 	} else {
 		rq->system_pc += pc;
-		if (rq->system_pc >= 100) {
-			rq->system_pc -= 100;
+		if (rq->system_pc >= 128) {
+			rq->system_pc -= 128;
 			cpustat->system = cputime64_add(cpustat->system, tmp);
 		}
 	}
@@ -2319,8 +2319,8 @@ static void pc_user_time(struct rq *rq, struct task_struct *p,
 	cputime64_t tmp = cputime_to_cputime64(cputime_one_jiffy);
 
 	p->utime_pc += pc;
-	if (p->utime_pc >= 100) {
-		p->utime_pc -= 100;
+	if (p->utime_pc >= 128) {
+		p->utime_pc -= 128;
 		p->utime = cputime_add(p->utime, cputime_one_jiffy);
 		p->utimescaled = cputime_add(p->utimescaled, one_jiffy_scaled);
 		account_group_user_time(p, cputime_one_jiffy);
@@ -2334,29 +2334,32 @@ static void pc_user_time(struct rq *rq, struct task_struct *p,
 		 * So, we have to handle it separately here.
 		 */
 		rq->softirq_pc += pc;
-		if (rq->softirq_pc >= 100) {
-			rq->softirq_pc %= 100;
+		if (rq->softirq_pc >= 128) {
+			rq->softirq_pc %= 128;
 			cpustat->softirq = cputime64_add(cpustat->softirq, tmp);
 		}
 	}
 
 	if (TASK_NICE(p) > 0 || idleprio_task(p)) {
 		rq->nice_pc += pc;
-		if (rq->nice_pc >= 100) {
-			rq->nice_pc %= 100;
+		if (rq->nice_pc >= 128) {
+			rq->nice_pc %= 128;
 			cpustat->nice = cputime64_add(cpustat->nice, tmp);
 		}
 	} else {
 		rq->user_pc += pc;
-		if (rq->user_pc >= 100) {
-			rq->user_pc %= 100;
+		if (rq->user_pc >= 128) {
+			rq->user_pc %= 128;
 			cpustat->user = cputime64_add(cpustat->user, tmp);
 		}
 	}
 }
 
-/* Convert nanoseconds to percentage of one tick. */
-#define NS_TO_PC(NS)	(NS * 100 / JIFFY_NS)
+/*
+ * Convert nanoseconds to pseudo percentage of one tick. Use 128 for fast
+ * shifts instead of 100
+ */
+#define NS_TO_PC(NS)	(NS * 128 / JIFFY_NS)
 
 /*
  * This is called on clock ticks and on context switches.
@@ -2376,15 +2379,15 @@ update_cpu_clock(struct rq *rq, struct task_struct *p, int tick)
 	account_pc = NS_TO_PC(account_ns);
 
 	if (tick) {
-		int user_tick = user_mode(get_irq_regs());
+		int user_tick;
 
 		/* Accurate tick timekeeping */
-		rq->account_pc += account_pc - 100;
+		rq->account_pc += account_pc - 128;
 		if (rq->account_pc < 0) {
 			/*
 			 * Small errors in micro accounting may not make the
-			 * accounting add up to 100% each tick so we keep track
-			 * of the percentage and round it up when less than 100
+			 * accounting add up to 128 each tick so we keep track
+			 * of the percentage and round it up when less than 128
 			 */
 			account_pc += -rq->account_pc;
 			rq->account_pc = 0;
@@ -2712,7 +2715,7 @@ static void task_running_tick(struct rq *rq)
 	 * presence of true RT tasks we account those as iso_ticks as well.
 	 */
 	if ((rt_queue(rq) || (iso_queue(rq) && !grq.iso_refractory))) {
-		if (grq.iso_ticks <= (ISO_PERIOD * 100) - 100)
+		if (grq.iso_ticks <= (ISO_PERIOD * 128) - 128)
 			iso_tick();
 	} else
 		no_iso_tick();
