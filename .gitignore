@@ -80,3 +80,13 @@ GTAGS
 *.orig
 *~
 \#*#
+
+# Custom
+*.old
+*.rej
+*.bork
+boot.img
+build.log*
+old
+release/vibrant/*
+release/ramdisks/build*
