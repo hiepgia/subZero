@@ -1,70 +1,121 @@
 #!/bin/bash
 
-setup ()
-{
-    if [ x = "x$ANDROID_BUILD_TOP" ] ; then
-        echo "Android build environment must be configured"
-        exit 1
-    fi
-    . "$ANDROID_BUILD_TOP"/build/envsetup.sh
+# Setup build environment
+BUILDHOME=$HOME/android/src/subZero
+BUILDLOG=$BUILDHOME/release/build/build.log
+export ANDROID_BUILD_TOP=$HOME/android/src/cyanogenmod
+export ARCH=arm
+export CROSS_COMPILE=$ANDROID_BUILD_TOP/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-
+#export CCACHE=1
+export CPUS=`grep 'processor' /proc/cpuinfo | wc -l`
 
-    KERNEL_DIR="$(dirname "$(readlink -f "$0")")"
-    BUILD_DIR="$KERNEL_DIR/build"
-    MODULES=("fs/cifs/cifs.ko" "fs/fuse/fuse.ko" "fs/nls/nls_utf8.ko")
+# Set the kernel version
+VERSION="1.1"
 
-    if [ x = "x$NO_CCACHE" ] && ccache -V &>/dev/null ; then
-        CCACHE=ccache
-        CCACHE_BASEDIR="$KERNEL_DIR"
-        CCACHE_COMPRESS=1
-        CCACHE_DIR="$BUILD_DIR/.ccache"
-        export CCACHE_DIR CCACHE_COMPRESS CCACHE_BASEDIR
-    else
-        CCACHE=""
-    fi
+# Set the phone model.  Default is "vibrant"
+if [ $# -lt 1 ]; then MODEL=vibrant; else MODEL=$1; fi
 
-    CROSS_PREFIX="$ANDROID_BUILD_TOP/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-"
-}
+# Check if Voodoo Color is enabled
+VOODOO=`grep CONFIG_FB_VOODOO= .config | awk -F= '{print $2}'`
+if [[ ${VOODOO} = "y" ]]; then VERSION=${VERSION}VC; fi
 
-build ()
-{
-    local target=$1
-    echo "Building for $target"
-    local target_dir="$BUILD_DIR/$target"
-    local module
-    rm -fr "$target_dir"
-    mkdir -p "$target_dir/usr"
-    cp "$KERNEL_DIR/usr/"*.list "$target_dir/usr"
-    sed "s|usr/|$KERNEL_DIR/usr/|g" -i "$target_dir/usr/"*.list
-    mka -C "$KERNEL_DIR" O="$target_dir" aries_${target}_defconfig HOSTCC="$CCACHE gcc"
-    mka -C "$KERNEL_DIR" O="$target_dir" HOSTCC="$CCACHE gcc" CROSS_COMPILE="$CCACHE $CROSS_PREFIX" zImage modules
-    cp "$target_dir"/arch/arm/boot/zImage $ANDROID_BUILD_TOP/device/samsung/$target/kernel
-    for module in "${MODULES[@]}" ; do
-        cp "$target_dir/$module" $ANDROID_BUILD_TOP/device/samsung/$target
-    done
-}
-    
-setup
+# Check whether I/O Scheduler is BFS or CFS
+SCHED=`grep CONFIG_SCHED_BFS= .config | awk -F= '{print $2}'`
+if [[ ${SCHED} = "y" ]]; then EXTRA=BFS; else EXTRA=CFS; fi
 
-if [ "$1" = clean ] ; then
-    rm -fr "$BUILD_DIR"/*
-    exit 0
+# Check whether BLNv9 is in use
+BLN=`grep BLN .config | awk -F= '{print $2}'`
+if [[ ${BLN} = "y" ]]; then EXTRA=${EXTRA}_BLN; else EXTRA=${EXTRA}_LED; fi
+
+# The Beginning
+clear
+cd $BUILDHOME
+if [ -f $BUILDLOG ]; then mv $BUILDLOG $BUILDLOG.old; fi
+
+# Ready, Set, GO!
+STARTTIME=`date`
+START=`date +%s`
+echo "Makin' Bacon. Please be patient..." | tee -a $BUILDLOG
+make -j$CPUS -s >> $BUILDLOG 2>&1
+
+if [ $? -ne 0 ]
+then
+  echo "Make failed." | tee -a $BUILDLOG
+  END=`date +%s`
+  ELAPSED=`expr $END - $START`
+  echo "Total Elapsed Time = $ELAPSED seconds" | tee -a $BUILDLOG
+  echo "End Time: `date`" | tee -a $BUILDLOG
+  exit
+fi
+  
+# Create the appropriate directory for the final kernel
+mkdir -p release/${MODEL}
+
+# Set the build version
+BUILDVER=`cat .version`
+
+# Include the appropriate liblights library
+if [[ ${BLN} = "y" ]]
+then
+  cp release/build/liblights/lights.aries.so.bln release/build/system/lib/hw/lights.aries.so
+else
+  cp release/build/liblights/lights.aries.so.cmled release/build/system/lib/hw/lights.aries.so
 fi
 
-targets=("$@")
-if [ 0 = "${#targets[@]}" ] ; then
-    targets=(captivatemtd fascinatemtd galaxysmtd galaxysbmtd vibrantmtd)
-fi
+# Generate the release string for the CWM flashable zip file
+RELEASE=subZero-${MODEL}-${VERSION}_build${BUILDVER}-${EXTRA}
 
-START=$(date +%s)
+# Generate the "boot.img" kernel
+~/android/src/aries-common/mkshbootimg.py release/build/boot.img arch/arm/boot/zImage release/ramdisks/ramdisk.img release/ramdisks/ramdisk-recovery.img >> $BUILDLOG 2>&1
 
-for target in "${targets[@]}" ; do 
-    build $target
+# Copy the modules
+find . -name "*.ko" -exec cp {} release/build/system/lib/modules/ \; >> $BUILDLOG 2>&1
+
+cd release/build
+
+# Get the appropriate updater-script
+UPDATER=updater-script-${VERSION}-${EXTRA}
+cp scripts/$UPDATER META-INF/com/google/android/updater-script
+
+# Make the CWM flashable zip
+7za a -r cwm-${RELEASE}.zip system cleanup boot.img META-INF bml_over_mtd bml_over_mtd.sh >> $BUILDLOG 2>&1
+
+# Make the Heimdall 1.3 package
+cd heimdall
+cp -p ../boot.img zImage
+tar -czf heimdall-${RELEASE}.tar.gz Vibrant.pit firmware.xml zImage
+rm zImage
+cd ..
+
+# Generate file checksums for file intregrity checks
+for package in *${RELEASE}*
+do
+  SIZE=`du -h $package | awk '{print $1}'`
+  MD5=`md5sum $package | awk '{print $1}'`
+  SHA256=`sha256sum $package | awk '{print $1}'`
+  echo "FILE:      $package ($SIZE)" > ../${MODEL}/$package.hash | tee -a $BUILDLOG
+  echo "MD5SUM:    $MD5" >> ../${MODEL}/$package.hash | tee -a $BUILDLOG
+  echo "SHA256SUM: $SHA256" >> ../${MODEL}/$package.hash | tee -a $BUILDLOG
+  echo >> ../${MODEL}/$package.hash | tee -a $BUILDLOG
 done
 
-END=$(date +%s)
-ELAPSED=$((END - START))
-E_MIN=$((ELAPSED / 60))
-E_SEC=$((ELAPSED - E_MIN * 60))
-printf "Elapsed: "
-[ $E_MIN != 0 ] && printf "%d min(s) " $E_MIN
-printf "%d sec(s)\n" $E_SEC
+# Move the finished packages to the appropriate pickup directory
+mv *${RELEASE}* ../${MODEL} >> $BUILDLOG 2>&1
+echo "Bacon has been cooked." | tee -a $BUILDLOG
+
+# Cleanup
+echo "Cleaning up the kitchen..." | tee -a $BUILDLOG
+rm META-INF/com/google/android/updater-script system/lib/modules/* system/lib/hw/lights.aries.so >> $BUILDLOG 2>&1
+
+# The End
+END=`date +%s`
+ENDTIME=`date`
+ELAPSED=`expr $END - $START`
+echo "Build complete!" | tee -a $BUILDLOG
+echo | tee -a $BUILDLOG
+echo "Elapsed Build Time = $ELAPSED seconds" | tee -a $BUILDLOG
+echo "Start Time: $STARTTIME   End Time: $ENDTIME" | tee -a $BUILDLOG
+echo | tee -a $BUILDLOG
+echo "Look in release/${MODEL} for kernel" | tee -a $BUILDLOG
+echo | tee -a $BUILDLOG
+cat ../${MODEL}/*.hash | tee -a $BUILDLOG
