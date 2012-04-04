@@ -18,21 +18,6 @@ config CPU_S5PV210
 	help
 	  Enable S5PV210 CPU support
 
-
-config S5PV210_BIGMEM
-bool "Enable Bigmem (more free RAM)"
-default n
-help
-    Aggressively restrict the memory set aside on
-    boot for FIMC, MFC and JPEG.
-
-config CPU_DIDLE
-        bool "Enable DEEP IDLE support for S5PV210 CPU"
-        depends on CPU_IDLE
-        default n
-        help
-          Enable DEEP IDLE support for S5PV210 CPU.
-
 config S5PV210_SETUP_I2C1
 	bool
 	default	y
@@ -88,7 +73,7 @@ config S5PV210_POWER_DOMAIN
 config S5PV210_CORESIGHT
 	bool "Coresight"
 	select OC_ETM
-	default n
+	default y
 	help
 	  Support embedded trace cell
 
@@ -369,6 +354,13 @@ config DVFS_LIMIT
 	depends on CPU_FREQ
 	default n
 
+config CPU_DIDLE
+        bool "Enable DEEP IDLE support for S5PV210 CPU"
+        depends on CPU_IDLE
+        default n
+        help
+          Enable DEEP IDLE support for S5PV210 CPU.
+
 config BT_SLEEP_ENABLER
 	bool "Enable BT SLEEP while in Deep Idle support for S5PV210 CPU"
 	depends on CPU_IDLE
@@ -381,4 +373,12 @@ config WIFI_CONTROL_FUNC
        bool "Enable WiFi control function abstraction"
        help
          Enables Power/Reset/Carddetect function abstraction
+
+config HUGERAM
+	bool "HUGERAM (working 720p decoding)"
+	default n
+    help
+      Decrease mmap usage to provide more ram to
+      userspace.  22 MB is required for 720p decoding
+      and disables support for 1080p.
 endif

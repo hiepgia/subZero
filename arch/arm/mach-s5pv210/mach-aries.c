@@ -47,7 +47,6 @@
 #include <mach/system.h>
 #include <mach/sec_switch.h>
 
-
 #include <linux/usb/gadget.h>
 #include <linux/fsa9480.h>
 #include <linux/pn544.h>
@@ -149,8 +148,6 @@ static int aries_notifier_call(struct notifier_block *this,
 	if ((code == SYS_RESTART) && _cmd) {
 		if (!strcmp((char *)_cmd, "recovery"))
 			mode = 2; // It's not REBOOT_MODE_RECOVERY, blame Samsung
-
-
 		else
 			mode = REBOOT_MODE_NONE;
 	}
@@ -299,6 +296,7 @@ static struct s3cfb_lcd s6e63m0 = {
 	.p_height = 86,
 	.bpp = 24,
 	.freq = 60,
+
 	.timing = {
 		.h_fp = 16,
 		.h_bp = 16,
@@ -317,19 +315,22 @@ static struct s3cfb_lcd s6e63m0 = {
 	},
 };
 
-#ifdef CONFIG_S5PV210_BIGMEM
-#define  S5PV210_VIDEO_SAMSUNG_MEMSIZE_FIMC0 (5632 * SZ_1K)
-#define  S5PV210_VIDEO_SAMSUNG_MEMSIZE_FIMC1 (4608 * SZ_1K)
-#define  S5PV210_VIDEO_SAMSUNG_MEMSIZE_FIMC2 (6144 * SZ_1K)
-#define  S5PV210_VIDEO_SAMSUNG_MEMSIZE_MFC0 (32768 * SZ_1K)
-#define  S5PV210_VIDEO_SAMSUNG_MEMSIZE_MFC1 (32768 * SZ_1K)
-#else
 #define  S5PV210_VIDEO_SAMSUNG_MEMSIZE_FIMC0 (11264 * SZ_1K)
-#define  S5PV210_VIDEO_SAMSUNG_MEMSIZE_FIMC1 (5000 * SZ_1K)
+
+#ifndef CONFIG_HUGERAM
+#define  S5PV210_VIDEO_SAMSUNG_MEMSIZE_FIMC1 (4616 * SZ_1K)
+#endif
+
 #define  S5PV210_VIDEO_SAMSUNG_MEMSIZE_FIMC2 (11264 * SZ_1K)
+
+#ifdef CONFIG_HUGERAM
+#define  S5PV210_VIDEO_SAMSUNG_MEMSIZE_MFC0 (11264 * SZ_1K)
+#define  S5PV210_VIDEO_SAMSUNG_MEMSIZE_MFC1 (11264 * SZ_1K)
+#else
 #define  S5PV210_VIDEO_SAMSUNG_MEMSIZE_MFC0 (32768 * SZ_1K)
 #define  S5PV210_VIDEO_SAMSUNG_MEMSIZE_MFC1 (32768 * SZ_1K)
 #endif
+
 #define  S5PV210_VIDEO_SAMSUNG_MEMSIZE_FIMD (S5PV210_LCD_WIDTH * \
 					     S5PV210_LCD_HEIGHT * 4 * \
 					     (CONFIG_FB_S3C_NR_BUFFERS + \
@@ -364,6 +365,7 @@ static struct s5p_media_device aries_media_devs[] = {
 		.memsize = S5PV210_VIDEO_SAMSUNG_MEMSIZE_FIMC0,
 		.paddr = 0,
 	},
+#ifndef CONFIG_HUGERAM
 	[3] = {
 		.id = S5P_MDEV_FIMC1,
 		.name = "fimc1",
@@ -371,6 +373,7 @@ static struct s5p_media_device aries_media_devs[] = {
 		.memsize = S5PV210_VIDEO_SAMSUNG_MEMSIZE_FIMC1,
 		.paddr = 0,
 	},
+#endif
 	[4] = {
 		.id = S5P_MDEV_FIMC2,
 		.name = "fimc2",
@@ -570,7 +573,6 @@ static struct regulator_init_data aries_ldo3_data = {
 	.consumer_supplies	= ldo3_consumer,
 };
 
-
 static struct regulator_init_data aries_ldo4_data = {
 	.constraints	= {
 		.name		= "VADC_3.3V",
@@ -584,7 +586,6 @@ static struct regulator_init_data aries_ldo4_data = {
 		},
 	},
 };
-
 
 #ifndef CONFIG_SAMSUNG_FASCINATE
 static struct regulator_init_data aries_ldo5_data = {
@@ -4248,12 +4249,6 @@ static unsigned int aries_sleep_gpio_table[][3] = {
   	{ S5PV210_GPA0(7), S3C_GPIO_SLP_OUT1,   S3C_GPIO_PULL_NONE},
 #endif
 
-
-
-
-
-
-
 	// GPA1 ---------------------------------------------------
 	{ S5PV210_GPA1(0), S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},
 	{ S5PV210_GPA1(1), S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},
@@ -4295,14 +4290,6 @@ static unsigned int aries_sleep_gpio_table[][3] = {
 	{ S5PV210_GPC0(2), S3C_GPIO_SLP_OUT0,   S3C_GPIO_PULL_NONE},
 	{ S5PV210_GPC0(3), S3C_GPIO_SLP_INPUT,  S3C_GPIO_PULL_NONE},
 	{ S5PV210_GPC0(4), S3C_GPIO_SLP_OUT0,   S3C_GPIO_PULL_NONE},
-
-
-
-
-
-
-
-
 
 	// GPC1 ---------------------------------------------------
 #if defined (CONFIG_SAMSUNG_CAPTIVATE)
@@ -4426,15 +4413,6 @@ static unsigned int aries_sleep_gpio_table[][3] = {
 	{ S5PV210_GPG1(5), S3C_GPIO_SLP_OUT1,   S3C_GPIO_PULL_NONE},	//GPIO_WLAN_SDIO_D2
 	{ S5PV210_GPG1(6), S3C_GPIO_SLP_OUT1,   S3C_GPIO_PULL_NONE},	//GPIO_WLAN_SDIO_D3
 
-
-
-
-
-
-
-
-
-
 	// GPG2 ---------------------------------------------------
 	{ S5PV210_GPG2(0), S3C_GPIO_SLP_OUT0,   S3C_GPIO_PULL_NONE},	//GPIO_T_FLASH_CLK
 	{ S5PV210_GPG2(1), S3C_GPIO_SLP_OUT0,   S3C_GPIO_PULL_NONE},	//GPIO_T_FLASH_CMD
@@ -4447,15 +4425,6 @@ static unsigned int aries_sleep_gpio_table[][3] = {
 	{ S5PV210_GPG2(4), S3C_GPIO_SLP_OUT0,   S3C_GPIO_PULL_NONE},	//GPIO_T_FLASH_D1
 	{ S5PV210_GPG2(5), S3C_GPIO_SLP_OUT0,   S3C_GPIO_PULL_NONE},	//GPIO_T_FLASH_D2
 	{ S5PV210_GPG2(6), S3C_GPIO_SLP_OUT0,   S3C_GPIO_PULL_NONE},	//GPIO_T_FLASH_D3
-
-
-
-
-
-
-
-
-
 
 	// GPG3 ---------------------------------------------------
 #if defined (CONFIG_SAMSUNG_VIBRANT)
@@ -4485,23 +4454,6 @@ static unsigned int aries_sleep_gpio_table[][3] = {
   	{ S5PV210_GPG3(6), S3C_GPIO_SLP_INPUT,  S3C_GPIO_PULL_DOWN},	//GPIO_GPG36
 #endif
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 	/* Alive part ending and off part start*/
 	// GPI ----------------------------------------------------
 	{ S5PV210_GPI(0),  S3C_GPIO_SLP_PREV,   S3C_GPIO_PULL_NONE},	//GPIO_CODEC_I2S_CLK
@@ -4520,15 +4472,6 @@ static unsigned int aries_sleep_gpio_table[][3] = {
   	{ S5PV210_GPI(5),  S3C_GPIO_SLP_INPUT,  S3C_GPIO_PULL_DOWN},	//GPIO_GPI5
   	{ S5PV210_GPI(6),  S3C_GPIO_SLP_INPUT,  S3C_GPIO_PULL_DOWN},	//GPIO_GPI6
 #endif
-
-
-
-
-
-
-
-
-
 
 	// GPJ0 ---------------------------------------------------
 	{ S5PV210_GPJ0(0), S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},
@@ -4555,7 +4498,6 @@ static unsigned int aries_sleep_gpio_table[][3] = {
 
 	{ S5PV210_GPJ1(1), S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},
 	{ S5PV210_GPJ1(2), S3C_GPIO_SLP_INPUT,  S3C_GPIO_PULL_DOWN},	//GPIO_GPJ12
-
 	{ S5PV210_GPJ1(3), S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},
 	{ S5PV210_GPJ1(4), S3C_GPIO_SLP_PREV,	S3C_GPIO_PULL_NONE},
 	{ S5PV210_GPJ1(5), S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},
@@ -4590,27 +4532,11 @@ static unsigned int aries_sleep_gpio_table[][3] = {
   	{ S5PV210_GPJ2(5), S3C_GPIO_SLP_PREV,   S3C_GPIO_PULL_NONE},	//GPIO_SUB_MICBIAS_EN
 #endif
 	{ S5PV210_GPJ2(6), S3C_GPIO_SLP_PREV,   S3C_GPIO_PULL_NONE},	//GPIO_EARPATH_SEL
-
-
 #if defined (CONFIG_SAMSUNG_GALAXYS) || defined (CONFIG_SAMSUNG_GALAXYSB)
-
-
-
-
-
-
-
-
 	{ S5PV210_GPJ2(7), S3C_GPIO_SLP_OUT1,   S3C_GPIO_PULL_NONE},	//GPIO_MASSMEMORY_EN
 #else
-
 	{ S5PV210_GPJ2(7), S3C_GPIO_SLP_OUT0,   S3C_GPIO_PULL_NONE},	//GPIO_MASSMEMORY_EN
 #endif
-
-
-
-
-
 
 	// GPJ3 ---------------------------------------------------
 	{ S5PV210_GPJ3(0), S3C_GPIO_SLP_INPUT,  S3C_GPIO_PULL_DOWN},	//_3_TOUCH_SDA_28V
@@ -4620,14 +4546,11 @@ static unsigned int aries_sleep_gpio_table[][3] = {
   	{ S5PV210_GPJ3(3), S3C_GPIO_SLP_OUT0,   S3C_GPIO_PULL_NONE},	//GPIO_GPJ33
 #else
   	{ S5PV210_GPJ3(3), S3C_GPIO_SLP_INPUT,  S3C_GPIO_PULL_DOWN},	//GPIO_GPJ33
-
 #endif
 	{ S5PV210_GPJ3(4), S3C_GPIO_SLP_INPUT,  S3C_GPIO_PULL_NONE},	//GPIO_USB_SDA_28V
 	{ S5PV210_GPJ3(5), S3C_GPIO_SLP_INPUT,  S3C_GPIO_PULL_NONE},	//GPIO_USB_SCL_28V
 	{ S5PV210_GPJ3(6), S3C_GPIO_SLP_INPUT,  S3C_GPIO_PULL_NONE},	//GPIO_AP_SDA_28V
-
 	{ S5PV210_GPJ3(7), S3C_GPIO_SLP_INPUT,  S3C_GPIO_PULL_NONE},	//GPIO_AP_SCL_28V
-
 
 	// GPJ4 ---------------------------------------------------
 	{ S5PV210_GPJ4(0), S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},
@@ -4638,7 +4561,6 @@ static unsigned int aries_sleep_gpio_table[][3] = {
   	{ S5PV210_GPJ4(4), S3C_GPIO_SLP_PREV,   S3C_GPIO_PULL_NONE},	//GPIO_EARMICBIAS_EN
 #else
   	{ S5PV210_GPJ4(4), S3C_GPIO_SLP_INPUT,  S3C_GPIO_PULL_DOWN},	//GPIO_GPJ44
-
 #endif
 
 	/* memory part */
@@ -4682,9 +4604,7 @@ static unsigned int aries_sleep_gpio_table[][3] = {
   	{ S5PV210_MP04(5), S3C_GPIO_SLP_INPUT,  S3C_GPIO_PULL_NONE},	//GPIO_MP045
 #else 
   	{ S5PV210_MP04(4), S3C_GPIO_SLP_INPUT,  S3C_GPIO_PULL_DOWN},	//GPIO_MP044
-
   	{ S5PV210_MP04(5), S3C_GPIO_SLP_INPUT,  S3C_GPIO_PULL_DOWN},	//GPIO_MP045
-
 #endif
 	{ S5PV210_MP04(6), S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},
 	{ S5PV210_MP04(7), S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},
@@ -5432,7 +5352,6 @@ static void __init aries_machine_init(void)
 	arm_pm_restart = aries_pm_restart;
 
 	setup_ram_console_mem();
-
 	aries_inject_cmdline();
 	platform_add_devices(aries_devices, ARRAY_SIZE(aries_devices));
 
@@ -5620,7 +5539,6 @@ void otg_phy_init(void)
 	/* set DC level as 0xf (24%) */
 	writel(readl(S3C_USBOTG_PHYTUNE) | 0xf, S3C_USBOTG_PHYTUNE);
 }
-
 EXPORT_SYMBOL(otg_phy_init);
 
 /* USB Control request data struct must be located here for DMA transfer */
@@ -5706,10 +5624,7 @@ void otg_host_phy_init(void)
 		);
 }
 EXPORT_SYMBOL(otg_host_phy_init);
-
-
 #endif
-
 #endif
 
 MACHINE_START(ARIES, "aries")
