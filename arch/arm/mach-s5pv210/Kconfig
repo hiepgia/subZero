@@ -370,9 +370,9 @@ config BT_SLEEP_ENABLER
 	  This is to Avoid BT Staying in Sleep Mode or Not Enter Sleep at all.
 
 config WIFI_CONTROL_FUNC
-       bool "Enable WiFi control function abstraction"
-       help
-         Enables Power/Reset/Carddetect function abstraction
+	bool "Enable WiFi control function abstraction"
+	help
+	  Enables Power/Reset/Carddetect function abstraction
 
 config HUGERAM
 	bool "HUGERAM (working 720p decoding)"
