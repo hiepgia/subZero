@@ -83,7 +83,7 @@ cp scripts/$UPDATER META-INF/com/google/android/updater-script
 # Make the Heimdall 1.3 package
 cd heimdall
 cp -p ../boot.img zImage
-tar -czf heimdall-${RELEASE}.tar.gz Vibrant.pit firmware.xml zImage
+tar -czf ../heimdall-${RELEASE}.tar.gz Vibrant.pit firmware.xml zImage
 rm zImage
 cd ..
 
