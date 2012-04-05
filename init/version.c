@@ -44,5 +44,5 @@ const char linux_banner[] =
 
 const char linux_proc_banner[] =
 	"%s version %s"
-	" (Fatality)"
+	" (Extra_Ordinary)"
 	" (" LINUX_COMPILER ") %s\n";
