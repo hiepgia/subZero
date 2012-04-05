@@ -3,7 +3,7 @@
 # Setup build environment
 BUILDHOME=$HOME/android/src/subZero
 BUILDLOG=$BUILDHOME/release/build/build.log
-export ANDROID_BUILD_TOP=$HOME/android/src/cyanogenmod
+export ANDROID_BUILD_TOP=$HOME/android/src/aokp
 export ARCH=arm
 export CROSS_COMPILE=$ANDROID_BUILD_TOP/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-
 #export CCACHE=1
