@@ -377,8 +377,9 @@ config WIFI_CONTROL_FUNC
 config HUGERAM
 	bool "HUGERAM (working 720p decoding)"
 	default n
-    help
-      Decrease mmap usage to provide more ram to
-      userspace.  22 MB is required for 720p decoding
-      and disables support for 1080p.
+	help
+	  Decrease mmap usage to provide more ram to
+	  userspace.  22 MB is required for 720p decoding
+	  and disables support for 1080p.
+
 endif
