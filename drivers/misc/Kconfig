@@ -635,4 +635,10 @@ config LIVE_OC
        help
          Say Y here to enable Live OC
 
+config TOUCH_WAKE
+  bool "Support for Touch Wake"
+  default y
+  help
+    Say Y here to enable Touch Wake
+
 endif # MISC_DEVICES
