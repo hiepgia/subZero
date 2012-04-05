@@ -22,7 +22,6 @@
 #include <linux/mutex.h>
 #include <linux/clk.h>
 #include <linux/workqueue.h>
-
 #include <asm/mach-types.h>
 
 #include <../../../drivers/staging/android/timed_output.h>
