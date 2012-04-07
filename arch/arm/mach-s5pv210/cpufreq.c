@@ -28,7 +28,6 @@
 #include <mach/cpu-freq-v210.h>
 #include <mach/voltages.h>
 
-
 static struct clk *cpu_clk;
 static struct clk *dmc0_clk;
 static struct clk *dmc1_clk;
@@ -678,7 +677,6 @@ static void liveoc_init(void)
 	index = s5pv210_freq_table[i].index;
 
 	fclk = original_fclk[index] / 1000;
-
 	divider = find_divider(fclk);
 
 	apll_values[index] = ((1 << 31) | (((fclk * divider) / 24) << 16) | (divider << 8) | (1));
@@ -729,9 +727,7 @@ else
 	    sleep_freq = s5pv210_freq_table[i].frequency;
 
 	fclk /= 1000;
-
 	divider = find_divider(fclk);
-
 	apll_values[index] = ((1 << 31) | (((fclk * divider) / 24) << 16) | (divider << 8) | (1));
 
 	i++;
@@ -767,8 +763,6 @@ unsigned long lowest_step(void)
 EXPORT_SYMBOL(lowest_step);
 
 #endif
-
-
 
 #ifdef CONFIG_CUSTOM_VOLTAGE
 static const int num_freqs = sizeof(dvs_conf) / sizeof(struct s5pv210_dvs_conf);

@@ -36,7 +36,7 @@
 #include <plat/gpio-cfg.h>
 #include <plat/irqs.h>
 #include "aries.h"
-//#include <plat/regs-gpio.h>
+
 #define BT_SLEEP_ENABLER
 
 #define IRQ_BT_HOST_WAKE      IRQ_EINT(21)
@@ -125,7 +125,6 @@ static int bluetooth_set_power(void *data, enum rfkill_user_states state)
 	case RFKILL_USER_STATE_SOFT_BLOCKED:
 		pr_debug("[BT] Device Powering OFF\n");
 
-
 		ret = disable_irq_wake(irq);
 		if (ret < 0)
 			pr_err("[BT] unset wakeup src failed\n");
@@ -166,8 +165,6 @@ static int bluetooth_set_power(void *data, enum rfkill_user_states state)
 irqreturn_t bt_host_wake_irq_handler(int irq, void *dev_id)
 {
 	pr_debug("[BT] bt_host_wake_irq_handler start\n");
-
-
 
 	if (gpio_get_value(GPIO_BT_HOST_WAKE))
 		wake_lock(&rfkill_wake_lock);
@@ -390,4 +387,3 @@ static int __init aries_rfkill_init(void)
 module_init(aries_rfkill_init);
 MODULE_DESCRIPTION("aries rfkill");
 MODULE_LICENSE("GPL");
-
