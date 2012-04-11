@@ -718,7 +718,7 @@ static struct attribute_group color_tuning_group = {
 
 static struct miscdevice color_tuning_device = {
 	.minor = MISC_DYNAMIC_MINOR,
-	.name = "color_tuning",
+	.name = "samoled_color",
 };
 
 static int __devinit tl2796_probe(struct spi_device *spi)
