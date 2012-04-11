@@ -74,20 +74,20 @@ static unsigned int ramp_down_step;
 /*
  * CPU freq will be increased if measured load > max_cpu_load;
  */
-#define DEFAULT_MAX_CPU_LOAD 75		// Default: 55
+#define DEFAULT_MAX_CPU_LOAD 80		// Default: 55
 static unsigned long max_cpu_load;
 
 /*
  * CPU freq will be decreased if measured load < min_cpu_load;
  */
-#define DEFAULT_MIN_CPU_LOAD 50		// Default: 30
+#define DEFAULT_MIN_CPU_LOAD 60		// Default: 30
 static unsigned long min_cpu_load;
 
 /*
  * The minimum amount of time to spend at a frequency before we can ramp up.
  * Notice we ignore this when we are below the ideal frequency.
  */
-#define DEFAULT_UP_RATE_US 25000;	// Default: 24000
+#define DEFAULT_UP_RATE_US 30000;	// Default: 24000
 static unsigned long up_rate_us;
 
 /*
@@ -101,7 +101,7 @@ static unsigned long down_rate_us;
  * The frequency to set when waking up from sleep.
  * When sleep_ideal_freq=0 this will have no effect.
  */
-#define DEFAULT_SLEEP_WAKEUP_FREQ (800*1000)
+#define DEFAULT_SLEEP_WAKEUP_FREQ (400*1000)	// Default: 800000
 static unsigned int sleep_wakeup_freq;
 
 /*
