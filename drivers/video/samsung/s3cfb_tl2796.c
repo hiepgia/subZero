@@ -39,6 +39,7 @@
 #define SLEEPMSEC		0x1000
 #define ENDDEF			0x2000
 #define DEFMASK		0xFF00
+
 #define NUM_GAMMA_REGS	21
 
 static const struct tl2796_gamma_adj_points default_gamma_adj_points = {
@@ -86,7 +87,7 @@ struct s5p_lcd *lcd_;
 u32 original_color_adj_mults[3];
 unsigned int panel_config_sequence = 0;
 
-int hacky_v1_offset[3] = {-14, -17, -18};
+u32 hacky_v1_offset[3] = {0, 0, 0};
 
 static const u16 s6e63m0_SEQ_ETC_SETTING_SAMSUNG[] = {
 	/* ETC Condition Set Command  */
@@ -287,7 +288,7 @@ static void setup_gamma_regs(struct s5p_lcd *lcd, u16 gamma_regs[])
 		// terrible shameful hack allowing to get back standard
 		// colors without fixing the real thing properly (gamma table)
 		// it consist on a simple (negative) offset applied on v0
-		gamma_regs[c] = ((adj + hacky_v1_offset[c]) > 0 && (adj <=255)) ? (adj + hacky_v1_offset[c]) | 0x100 : adj | 0x100;
+        gamma_regs[c] = (adj > hacky_v1_offset[c] && (adj <=255)) ? (adj - hacky_v1_offset[c]) | 0x100 : adj | 0x100;
 #else
 		gamma_regs[c] = adj | 0x100;
 #endif
@@ -345,46 +346,26 @@ static void setup_gamma_regs(struct s5p_lcd *lcd, u16 gamma_regs[])
 
 static int s6e63m0_spi_write_driver(struct s5p_lcd *lcd, u16 reg)
 {
-    u16 buf[1];
-    int ret;
-    struct spi_message msg;
+	u16 buf[1];
+	int ret;
+	struct spi_message msg;
 
-    struct spi_transfer xfer = {
-        .len	= 2,
-        .tx_buf	= buf,
-    };
+	struct spi_transfer xfer = {
+		.len	= 2,
+		.tx_buf	= buf,
+	};
 
-    buf[0] = reg;
+	buf[0] = reg;
 
-    spi_message_init(&msg);
-    spi_message_add_tail(&xfer, &msg);
+	spi_message_init(&msg);
+	spi_message_add_tail(&xfer, &msg);
 
-    ret = spi_sync(lcd->g_spi, &msg);
+	ret = spi_sync(lcd->g_spi, &msg);
 
-    if (ret < 0)
-        pr_err("%s error\n", __func__);
+	if (ret < 0)
+		pr_err("%s error\n", __func__);
 
-    return ret ;
-}
-
-static void print_decoded_commands(short unsigned int commands_record[], int i)
-{
-    printk("Super AMOLED commands decoding:\n");
-    if (i == 23)
-    {
-        printk("Brightness gains: Red = %3d, Green = %3d, Blue = %3d\n",
-                 commands_record[18]-256, commands_record[20]-256, commands_record[22]-256);
-        printk("Gamma 0: Red = %3d, Green = %3d, Blue = %3d\n",
-                 commands_record[2]-256, commands_record[3]-256, commands_record[4]-256);
-        printk("Gamma 1: Red = %3d, Green = %3d, Blue = %3d\n",
-                 commands_record[5]-256, commands_record[6]-256, commands_record[7]-256);
-        printk("Gamma 2: Red = %3d, Green = %3d, Blue = %3d\n",
-                 commands_record[8]-256, commands_record[9]-256, commands_record[10]-256);
-        printk("Gamma 3: Red = %3d, Green = %3d, Blue = %3d\n",
-                 commands_record[11]-256, commands_record[12]-256, commands_record[13]-256);
-        printk("Gamma 4: Red = %3d, Green = %3d, Blue = %3d\n",
-                 commands_record[14]-256, commands_record[15]-256, commands_record[16]-256);
-    }
+	return ret ;
 }
 
 #ifdef CONFIG_FB_VOODOO_DEBUG_LOG
@@ -411,7 +392,7 @@ static void voodoo_print_decoded_commands(short unsigned int commands_record[], 
 #endif
 
 static void s6e63m0_panel_send_sequence(struct s5p_lcd *lcd,
-    const u16 *wbuf)
+	const u16 *wbuf)
 {
 	int i = 0;
 
@@ -456,9 +437,9 @@ static void update_brightness(struct s5p_lcd *lcd)
 
 static void tl2796_ldi_enable(struct s5p_lcd *lcd)
 {
-    struct s5p_panel_data *pdata = lcd->data;
+	struct s5p_panel_data *pdata = lcd->data;
 
-    mutex_lock(&lcd->lock);
+	mutex_lock(&lcd->lock);
 
 	s6e63m0_panel_send_sequence(lcd, pdata->seq_display_set);
 	update_brightness(lcd);
@@ -472,19 +453,19 @@ static void tl2796_ldi_enable(struct s5p_lcd *lcd)
 #endif
 	lcd->ldi_enable = 1;
 
-    mutex_unlock(&lcd->lock);
+	mutex_unlock(&lcd->lock);
 }
 
 static void tl2796_ldi_disable(struct s5p_lcd *lcd)
 {
-    struct s5p_panel_data *pdata = lcd->data;
+	struct s5p_panel_data *pdata = lcd->data;
 
-    mutex_lock(&lcd->lock);
+	mutex_lock(&lcd->lock);
 
-    lcd->ldi_enable = 0;
-    s6e63m0_panel_send_sequence(lcd, pdata->standby_on);
+	lcd->ldi_enable = 0;
+	s6e63m0_panel_send_sequence(lcd, pdata->standby_on);
 
-    mutex_unlock(&lcd->lock);
+	mutex_unlock(&lcd->lock);
 }
 
 static int s5p_bl_update_status(struct backlight_device *bd)
@@ -512,7 +493,7 @@ static int s5p_bl_update_status(struct backlight_device *bd)
 
 	mutex_unlock(&lcd->lock);
 
-    return 0;
+	return 0;
 }
 
 const struct backlight_ops s5p_bl_ops = {
@@ -1031,13 +1012,13 @@ static ssize_t panel_config_sequence_store(struct device *dev, struct device_att
 
 static ssize_t red_v1_offset_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", hacky_v1_offset[0]);
+	return sprintf(buf, "%u\n", hacky_v1_offset[0]);
 }
 
 static ssize_t red_v1_offset_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
 {
-	int value;
-	if (sscanf(buf, "%d", &value) == 1)
+	u32 value;
+	if (sscanf(buf, "%u", &value) == 1)
 	{
 		hacky_v1_offset[0] = value;
 		update_brightness(lcd_);
@@ -1047,13 +1028,13 @@ static ssize_t red_v1_offset_store(struct device *dev, struct device_attribute *
 
 static ssize_t green_v1_offset_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", hacky_v1_offset[1]);
+	return sprintf(buf, "%u\n", hacky_v1_offset[1]);
 }
 
 static ssize_t green_v1_offset_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
 {
-	int value;
-	if (sscanf(buf, "%d", &value) == 1)
+	u32 value;
+	if (sscanf(buf, "%u", &value) == 1)
 	{
 		hacky_v1_offset[1] = value;
 		update_brightness(lcd_);
@@ -1063,13 +1044,13 @@ static ssize_t green_v1_offset_store(struct device *dev, struct device_attribute
 
 static ssize_t blue_v1_offset_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", hacky_v1_offset[2]);
+	return sprintf(buf, "%u\n", hacky_v1_offset[2]);
 }
 
 static ssize_t blue_v1_offset_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
 {
 	int value;
-	if (sscanf(buf, "%d", &value) == 1)
+	if (sscanf(buf, "%u", &value) == 1)
 	{
 		hacky_v1_offset[2] = value;
 		update_brightness(lcd_);
@@ -1179,14 +1160,16 @@ static int __devinit tl2796_probe(struct spi_device *spi)
 	}
 
 	lcd->bl_dev->props.max_brightness = 255;
+	lcd->bl_dev->props.brightness = 255;
 
 	tl2796_ldi_enable(lcd);
 #ifdef CONFIG_HAS_EARLYSUSPEND
-    lcd->early_suspend.suspend = tl2796_early_suspend;
-    lcd->early_suspend.resume = tl2796_late_resume;
-    lcd->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB - 1;
-    register_early_suspend(&lcd->early_suspend);
+	lcd->early_suspend.suspend = tl2796_early_suspend;
+	lcd->early_suspend.resume = tl2796_late_resume;
+	lcd->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB - 1;
+	register_early_suspend(&lcd->early_suspend);
 #endif
+
 	lcd->debug_dir = debugfs_create_dir("s5p_bl", NULL);
 	if (!lcd->debug_dir)
 		dev_err(lcd->dev, "failed to create debug dir\n");
@@ -1210,46 +1193,46 @@ static int __devinit tl2796_probe(struct spi_device *spi)
 	return 0;
 
 err_setup:
-    mutex_destroy(&lcd->lock);
-    kfree(lcd);
+	mutex_destroy(&lcd->lock);
+	kfree(lcd);
 
 err_alloc:
-    return ret;
+	return ret;
 }
 
 static int __devexit tl2796_remove(struct spi_device *spi)
 {
-    struct s5p_lcd *lcd = spi_get_drvdata(spi);
+	struct s5p_lcd *lcd = spi_get_drvdata(spi);
 
 	debugfs_remove_recursive(lcd->debug_dir);
 
 	unregister_early_suspend(&lcd->early_suspend);
 
-    backlight_device_unregister(lcd->bl_dev);
+	backlight_device_unregister(lcd->bl_dev);
 
-    tl2796_ldi_disable(lcd);
+	tl2796_ldi_disable(lcd);
 
-    kfree(lcd);
+	kfree(lcd);
 
-    return 0;
+	return 0;
 }
 
 static struct spi_driver tl2796_driver = {
-    .driver = {
-        .name	= "tl2796",
-        .owner	= THIS_MODULE,
-    },
-    .probe		= tl2796_probe,
-    .remove		= __devexit_p(tl2796_remove),
+	.driver = {
+		.name	= "tl2796",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= tl2796_probe,
+	.remove		= __devexit_p(tl2796_remove),
 };
 
 static int __init tl2796_init(void)
 {
-    return spi_register_driver(&tl2796_driver);
+	return spi_register_driver(&tl2796_driver);
 }
 static void __exit tl2796_exit(void)
 {
-    spi_unregister_driver(&tl2796_driver);
+	spi_unregister_driver(&tl2796_driver);
 }
 
 module_init(tl2796_init);
