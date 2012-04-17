@@ -17,7 +17,18 @@ if [ $# -lt 1 ]; then MODEL=vibrant; else MODEL=$1; fi
 
 # Check if Voodoo Color is enabled
 VOODOO=`grep CONFIG_FB_VOODOO= .config | awk -F= '{print $2}'`
-if [[ ${VOODOO} = "y" ]]; then VERSION=${VERSION}VC; fi
+if [[ ${VOODOO} = "y" ]]
+then
+	# Check if this is also a MIUI build
+	MIUI=`grep CONFIG_LOCALVERSION= .config | awk -F= '{print $2}'`
+	if [[ ${MIUI} =~ MIUI ]]
+	then
+		VERSION=${VERSION}MIUI
+	else
+		VERSION=${VERSION}VC
+	fi
+fi
+
 
 # Check whether I/O Scheduler is BFS or CFS
 SCHED=`grep CONFIG_SCHED_BFS= .config | awk -F= '{print $2}'`
@@ -77,6 +88,18 @@ cd release/build
 UPDATER=updater-script-${VERSION}-${EXTRA}
 cp scripts/$UPDATER META-INF/com/google/android/updater-script
 
+# Stage Rom
+if [[ ${VERSION} =~ MIUI ]]
+then
+	# For MIUI roms
+	cp initd/99voodoo.voodoo_color system/etc/init.d/99voodoo
+else
+	# For non-MIUI roms
+	cp -rp app system
+	cp initd/99voodoo.samoled_color system/etc/init.d/99voodoo
+	cp initd/99samoled_color system/etc/init.d/99samoled_color
+fi
+	
 # Make the CWM flashable zip
 7za a -r cwm-${RELEASE}.zip system cleanup boot.img META-INF bml_over_mtd bml_over_mtd.sh >> $BUILDLOG 2>&1
 
@@ -105,7 +128,7 @@ echo "Bacon has been cooked." | tee -a $BUILDLOG
 
 # Cleanup
 echo "Cleaning up the kitchen..." | tee -a $BUILDLOG
-rm META-INF/com/google/android/updater-script system/lib/modules/* system/lib/hw/lights.aries.so >> $BUILDLOG 2>&1
+rm -rf META-INF/com/google/android/updater-script system/lib/modules/* system/lib/hw/lights.aries.so system/app system/etc/init.d/99samoled_color system/etc/init.d/99voodoo >> $BUILDLOG 2>&1
 
 # The End
 END=`date +%s`
