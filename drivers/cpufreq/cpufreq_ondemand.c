@@ -627,6 +627,7 @@ static int should_io_be_busy(void)
 static void powersave_early_suspend(struct early_suspend *handler)
 {
 	mutex_lock(&dbs_mutex);
+	sampling_rate_awake = dbs_tuners_ins.sampling_rate;
 	dbs_tuners_ins.sampling_rate *= SAMPLING_RATE_SLEEP_MULTIPLIER;
 	mutex_unlock(&dbs_mutex);
 }
