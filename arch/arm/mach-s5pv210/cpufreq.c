@@ -368,7 +368,7 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 
 	/* Check if there need to change PLL */
-	if ((index <= L3) || (freqs.old >= s5pv210_freq_table[L3].frequency))
+	if ((index <= L4) || (freqs.old >= s5pv210_freq_table[L4].frequency))
 		pll_changing = 1;
 
 	/* Check if there need to change System bus clock */
