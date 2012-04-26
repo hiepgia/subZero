@@ -374,8 +374,8 @@ config WIFI_CONTROL_FUNC
 	help
 	  Enables Power/Reset/Carddetect function abstraction
 
-config HUGERAM
-	bool "HUGERAM (working 720p decoding)"
+config FATRAM
+	bool "FATRAM (working 720p decoding)"
 	default n
 	help
 	  Decrease mmap usage to provide more ram to
