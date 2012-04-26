@@ -10,7 +10,7 @@ export CROSS_COMPILE=$ANDROID_BUILD_TOP/prebuilt/linux-x86/toolchain/arm-eabi-4.
 export CPUS=`grep 'processor' /proc/cpuinfo | wc -l`
 
 # Set the kernel version
-VERSION="1.1"
+VERSION="1.2"
 
 # Set the phone model.  Default is "vibrant"
 if [ $# -lt 1 ]; then MODEL=vibrant; else MODEL=$1; fi
