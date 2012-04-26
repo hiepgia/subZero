@@ -13,19 +13,51 @@ export CPUS=`grep 'processor' /proc/cpuinfo | wc -l`
 VERSION="1.2"
 
 # Set the phone model.  Default is "vibrant"
-if [ $# -lt 1 ]; then MODEL=vibrant; else MODEL=$1; fi
-
-# Check if Voodoo Color is enabled
-VOODOO=`grep CONFIG_FB_VOODOO= .config | awk -F= '{print $2}'`
-if [[ ${VOODOO} = "y" ]]; then VERSION=${VERSION}VC; fi
+if [ $# -lt 1 ]
+then
+	MODEL=vibrant
+else
+	MODEL=$1
+fi
 
 # Check whether I/O Scheduler is BFS or CFS
 SCHED=`grep CONFIG_SCHED_BFS= .config | awk -F= '{print $2}'`
-if [[ ${SCHED} = "y" ]]; then EXTRA=BFS; else EXTRA=CFS; fi
+if [[ ${SCHED} = "y" ]]
+then
+	EXTRA=BFS
+else
+	EXTRA=CFS
+fi
+
+# Check if Voodoo Color is enabled
+VOODOO=`grep CONFIG_FB_VOODOO= .config | awk -F= '{print $2}'`
+if [[ ${VOODOO} = "y" ]]
+then
+	# Now check if this is a MIUI build
+	if [ `grep MIUI .config` ]
+	then
+		EXTRA=${EXTRA}_MIUI
+	else
+		EXTRA=${EXTRA}_VOODOO
+	fi
+fi
 
 # Check whether BLNv9 is in use
 BLN=`grep BLN .config | awk -F= '{print $2}'`
-if [[ ${BLN} = "y" ]]; then EXTRA=${EXTRA}_BLN; else EXTRA=${EXTRA}_LED; fi
+if [[ ${BLN} = "y" ]]
+then
+	EXTRA=${EXTRA}_BLN
+else
+	EXTRA=${EXTRA}_LED
+fi
+
+mark
+# Check whether we are using FATRAM
+FATRAM=`grep FATRAM= .config | awk -F= '{print $2}'`
+if [[ ${FATRAM} = "y" ]]
+then
+	EXTRA=${EXTRA}_FAT
+fi
 
 # The Beginning
 clear
@@ -74,8 +106,12 @@ find . -name "*.ko" -exec cp {} release/build/system/lib/modules/ \; >> $BUILDLO
 cd release/build
 
 # Get the appropriate updater-script
-UPDATER=updater-script-${VERSION}-${EXTRA}
+UPDATER=updater-script.template
 cp scripts/$UPDATER META-INF/com/google/android/updater-script
+
+# Fix-up script details
+perl -p -i -e "s/VERSION/${VERSION}/" META-INF/com/google/android/updater-script
+perl -p -i -e "s/EXTRA/${EXTRA}/" META-INF/com/google/android/updater-script
 
 # Make the CWM flashable zip
 7za a -r cwm-${RELEASE}.zip system cleanup boot.img META-INF bml_over_mtd bml_over_mtd.sh >> $BUILDLOG 2>&1
