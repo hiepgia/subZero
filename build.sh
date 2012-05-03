@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Setup build environment
-BUILDHOME=$HOME/android/src/subZero
+BUILDHOME=/android/src/subZero
 BUILDLOG=$BUILDHOME/release/build/build.log
 export ANDROID_BUILD_TOP=$HOME/android/src/aokp
 export ARCH=arm
@@ -98,7 +98,7 @@ fi
 RELEASE=subZero-${MODEL}-${VERSION}_build${BUILDVER}-${EXTRA}
 
 # Generate the "boot.img" kernel
-~/android/src/aries-common/mkshbootimg.py release/build/boot.img arch/arm/boot/zImage release/ramdisks/ramdisk.img release/ramdisks/ramdisk-recovery.img >> $BUILDLOG 2>&1
+/android/src/aries-common/mkshbootimg.py release/build/boot.img arch/arm/boot/zImage release/ramdisks/ramdisk.img release/ramdisks/ramdisk-recovery.img >> $BUILDLOG 2>&1
 
 # Copy the modules
 find . -name "*.ko" -exec cp {} release/build/system/lib/modules/ \; >> $BUILDLOG 2>&1
