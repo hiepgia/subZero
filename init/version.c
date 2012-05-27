@@ -44,5 +44,5 @@ const char linux_banner[] =
 
 const char linux_proc_banner[] =
 	"%s version %s"
-	" (Yars'_Revenge)"
+	" (Reality_OD)"
 	" (" LINUX_COMPILER ") %s\n";
