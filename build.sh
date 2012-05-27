@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Setup build environment
-BUILDHOME=$HOME/android/src/subZero
+BUILDHOME=/android/src/subZero
 BUILDLOG=$BUILDHOME/release/build/build.log
-export ANDROID_BUILD_TOP=$HOME/android/src/aokp
+export ANDROID_BUILD_TOP=/android/src/aokp
 export ARCH=arm
 export CROSS_COMPILE=$ANDROID_BUILD_TOP/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-
 #export CCACHE=1
@@ -63,6 +63,9 @@ clear
 cd $BUILDHOME
 if [ -f $BUILDLOG ]; then mv $BUILDLOG $BUILDLOG.old; fi
 
+# Setup the kernel's 'system' directory
+cp -rp release/build/system.kernel release/build/system
+
 # Ready, Set, GO!
 STARTTIME=`date`
 START=`date +%s`
@@ -97,7 +100,7 @@ fi
 RELEASE=subZero-${MODEL}-${VERSION}_build${BUILDVER}-${EXTRA}
 
 # Generate the "boot.img" kernel
-~/android/src/aries-common/mkshbootimg.py release/build/boot.img arch/arm/boot/zImage release/ramdisks/ramdisk.img release/ramdisks/ramdisk-recovery.img >> $BUILDLOG 2>&1
+/android/src/aries-common/mkshbootimg.py release/build/boot.img arch/arm/boot/zImage release/ramdisks/ramdisk.img release/ramdisks/ramdisk-recovery.img >> $BUILDLOG 2>&1
 
 # Copy the modules
 find . -name "*.ko" -exec cp {} release/build/system/lib/modules/ \; >> $BUILDLOG 2>&1
@@ -113,9 +116,19 @@ perl -p -i -e "s/VERSION/${VERSION}/" META-INF/com/google/android/updater-script
 perl -p -i -e "s/EXTRA/${EXTRA}/" META-INF/com/google/android/updater-script
 
 # Make the CWM flashable zip
+echo "Creating subZero kernel package..." | tee -a $BUILDLOG
 7za a -r cwm-${RELEASE}.zip system cleanup boot.img META-INF bml_over_mtd bml_over_mtd.sh >> $BUILDLOG 2>&1
+rm -r system
+
+# Make the AriesParts package
+echo "Creating AriesParts add-on package..." | tee -a $BUILDLOG
+cp scripts/updater-script.ariesparts META-INF/com/google/android/updater-script
+cp -rp system.ariesparts system
+7za a -r cwm-ariesparts.zip system META-INF >> $BUILDLOG 2>&1
+rm -r system
 
 # Make the Heimdall 1.3 package
+echo "Creating Heimdall kernel package..." | tee -a $BUILDLOG
 cd heimdall
 cp -p ../boot.img zImage
 tar -czf ../heimdall-${RELEASE}.tar.gz Vibrant.pit firmware.xml zImage
@@ -123,6 +136,7 @@ rm zImage
 cd ..
 
 # Generate file checksums for file intregrity checks
+echo "Generating file checksums..." | tee -a $BUILDLOG
 for package in *${RELEASE}*
 do
   SIZE=`du -h $package | awk '{print $1}'`
@@ -134,12 +148,25 @@ do
   echo >> ../${MODEL}/$package.hash | tee -a $BUILDLOG
 done
 
+for package in cwm-ariesparts.zip
+do
+  SIZE=`du -h $package | awk '{print $1}'`
+  MD5=`md5sum $package | awk '{print $1}'`
+  SHA256=`sha256sum $package | awk '{print $1}'`
+  echo "FILE:      $package ($SIZE)" > ../${MODEL}/$package.hash | tee -a $BUILDLOG
+  echo "MD5SUM:    $MD5" >> ../${MODEL}/$package.hash | tee -a $BUILDLOG
+  echo "SHA256SUM: $SHA256" >> ../${MODEL}/$package.hash | tee -a $BUILDLOG
+  echo >> ../${MODEL}/$package.hash | tee -a $BUILDLOG
+done
+
 # Move the finished packages to the appropriate pickup directory
+echo "Moving packages to final destination..." | tee -a $BUILDLOG
 mv *${RELEASE}* ../${MODEL} >> $BUILDLOG 2>&1
+mv cwm-ariesparts.zip ../${MODEL} >> $BUILDLOG 2>&1
 echo "Bacon has been cooked." | tee -a $BUILDLOG
 
 # Cleanup
-echo "Cleaning up the kitchen..." | tee -a $BUILDLOG
+echo "Cleaning up..." | tee -a $BUILDLOG
 rm META-INF/com/google/android/updater-script system/lib/modules/* system/lib/hw/lights.aries.so >> $BUILDLOG 2>&1
 
 # The End
