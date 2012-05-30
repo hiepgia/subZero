@@ -51,13 +51,6 @@ else
 	EXTRA=${EXTRA}_LED
 fi
 
-# Check whether we are using FATRAM
-FATRAM=`grep FATRAM= .config | awk -F= '{print $2}'`
-if [[ ${FATRAM} = "y" ]]
-then
-	EXTRA=${EXTRA}_FAT
-fi
-
 # The Beginning
 clear
 cd $BUILDHOME
