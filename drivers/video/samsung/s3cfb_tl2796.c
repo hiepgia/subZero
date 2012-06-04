@@ -1157,7 +1157,7 @@ static struct miscdevice voodoo_color_device = {
 #else
 static struct miscdevice color_tuning_device = {
 	.minor = MISC_DYNAMIC_MINOR,
-	.name = "samoled_color",
+	.name = "color_tuning",
 };
 #endif
 
