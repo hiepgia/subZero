@@ -76,7 +76,10 @@ then
 fi
   
 # Create the appropriate directory for the final kernel
-mkdir -p release/${MODEL}
+if [ ! -d release/${MODEL} ]
+then
+  mkdir -p release/${MODEL}
+fi
 
 # Set the build version
 BUILDVER=`cat .version`
@@ -113,13 +116,6 @@ echo "Creating subZero kernel package..." | tee -a $BUILDLOG
 7za a -r cwm-${RELEASE}.zip system cleanup boot.img META-INF bml_over_mtd bml_over_mtd.sh >> $BUILDLOG 2>&1
 rm -r system
 
-# Make the AriesParts package
-echo "Creating AriesParts add-on package..." | tee -a $BUILDLOG
-cp scripts/updater-script.ariesparts META-INF/com/google/android/updater-script
-cp -rp system.ariesparts system
-7za a -r cwm-ariesparts.zip system META-INF >> $BUILDLOG 2>&1
-rm -r system
-
 # Make the Heimdall 1.3 package
 echo "Creating Heimdall kernel package..." | tee -a $BUILDLOG
 cd heimdall
@@ -129,7 +125,6 @@ rm zImage
 cd ..
 
 # Generate file checksums for file intregrity checks
-echo "Generating file checksums..." | tee -a $BUILDLOG
 for package in *${RELEASE}*
 do
   SIZE=`du -h $package | awk '{print $1}'`
@@ -141,21 +136,52 @@ do
   echo >> ../${MODEL}/$package.hash | tee -a $BUILDLOG
 done
 
-for package in cwm-ariesparts.zip
+# Make the add-on packages
+for package in ariesparts romcontrol 720p_fix_v3
 do
-  SIZE=`du -h $package | awk '{print $1}'`
-  MD5=`md5sum $package | awk '{print $1}'`
-  SHA256=`sha256sum $package | awk '{print $1}'`
-  echo "FILE:      $package ($SIZE)" > ../${MODEL}/$package.hash | tee -a $BUILDLOG
-  echo "MD5SUM:    $MD5" >> ../${MODEL}/$package.hash | tee -a $BUILDLOG
-  echo "SHA256SUM: $SHA256" >> ../${MODEL}/$package.hash | tee -a $BUILDLOG
-  echo >> ../${MODEL}/$package.hash | tee -a $BUILDLOG
+  echo "Creating $package add-on package..." | tee -a $BUILDLOG
+  if [[ ${package} = "ariesparts" ]]
+  then
+    for ap in aokp cm9
+    do
+      cp scripts/updater-script.$package.$ap META-INF/com/google/android/updater-script
+      cp -rp system.$package.$ap system
+      7za a -r cwm-$package-$ap.zip system META-INF >> $BUILDLOG 2>&1
+      rm -r system
+
+      # Generate checksums
+      PACKAGE=cwm-$package-$ap.zip
+      SIZE=`du -h $PACKAGE | awk '{print $1}'`
+      MD5=`md5sum $PACKAGE | awk '{print $1}'`
+      SHA256=`sha256sum $PACKAGE | awk '{print $1}'`
+      echo "FILE:      $PACKAGE ($SIZE)" > ../${MODEL}/$PACKAGE.hash | tee -a $BUILDLOG
+      echo "MD5SUM:    $MD5" >> ../${MODEL}/$PACKAGE.hash | tee -a $BUILDLOG
+      echo "SHA256SUM: $SHA256" >> ../${MODEL}/$PACKAGE.hash | tee -a $BUILDLOG
+      echo >> ../${MODEL}/$PACKAGE.hash | tee -a $BUILDLOG
+    done
+  else
+    cp scripts/updater-script.$package META-INF/com/google/android/updater-script
+    cp -rp system.$package system
+    7za a -r cwm-$package.zip system META-INF >> $BUILDLOG 2>&1
+    rm -r system
+
+    # Generate checksums
+    PACKAGE=cwm-$package.zip
+    SIZE=`du -h $PACKAGE | awk '{print $1}'`
+    MD5=`md5sum $PACKAGE | awk '{print $1}'`
+    SHA256=`sha256sum $PACKAGE | awk '{print $1}'`
+    echo "FILE:      $PACKAGE ($SIZE)" > ../${MODEL}/$PACKAGE.hash | tee -a $BUILDLOG
+    echo "MD5SUM:    $MD5" >> ../${MODEL}/$PACKAGE.hash | tee -a $BUILDLOG
+    echo "SHA256SUM: $SHA256" >> ../${MODEL}/$PACKAGE.hash | tee -a $BUILDLOG
+    echo >> ../${MODEL}/$PACKAGE.hash | tee -a $BUILDLOG
+  fi
 done
 
 # Move the finished packages to the appropriate pickup directory
 echo "Moving packages to final destination..." | tee -a $BUILDLOG
-mv *${RELEASE}* ../${MODEL} >> $BUILDLOG 2>&1
-mv cwm-ariesparts.zip ../${MODEL} >> $BUILDLOG 2>&1
+mv cwm*.zip ../${MODEL} >> $BUILDLOG 2>&1
+mv heimdall*.gz ../${MODEL} >> $BUILDLOG 2>&1
+mv *.hash ../${MODEL} >> $BUILDLOG 2>&1
 echo "Bacon has been cooked." | tee -a $BUILDLOG
 
 # Cleanup
