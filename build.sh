@@ -34,9 +34,9 @@ VOODOO=`grep CONFIG_FB_VOODOO= .config | awk -F= '{print $2}'`
 if [[ ${VOODOO} = "y" ]]
 then
 	# Now check if this is a MIUI build
-	if [ `grep MIUI .config` ]
+	if [ `grep VOODOO_MOD .config` ]
 	then
-		EXTRA=${EXTRA}_MIUI
+		EXTRA=${EXTRA}_VOODOO_MOD
 	else
 		EXTRA=${EXTRA}_VOODOO
 	fi
