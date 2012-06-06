@@ -154,10 +154,7 @@ static int aries_notifier_call(struct notifier_block *this,
 		mode = 7;
 	if ((code == SYS_RESTART) && _cmd) {
 		if (!strcmp((char *)_cmd, "recovery"))
-			if (bigmem)
-				mode = 9;
-			else
-				mode = 2; // It's not REBOOT_MODE_RECOVERY, blame Samsung
+			mode = 2; // It's not REBOOT_MODE_RECOVERY, blame Samsung
 		else {
 			if (bigmem)
 				mode = 7;
